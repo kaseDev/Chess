@@ -1,0 +1,24 @@
+
+
+table, td {
+  border: 1px black solid;
+}
+
+td {
+  height: 40px;
+  width: 40px;
+}
+
+table {
+  background: #8B4513;
+  margin-left:auto;
+  margin-right:auto;
+}
+
+tr:nth-child(odd) > td:nth-child(odd), tr:nth-child(even) > td:nth-child(even) {
+  background: #A52A2A;
+}
+
+tr:nth-child(odd) > td:nth-child(even), tr:nth-child(even) > td:nth-child(odd) {
+  background: #F5DEB3;
+}
