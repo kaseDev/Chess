@@ -22,3 +22,7 @@ tr:nth-child(odd) > td:nth-child(odd), tr:nth-child(even) > td:nth-child(even) {
 tr:nth-child(odd) > td:nth-child(even), tr:nth-child(even) > td:nth-child(odd) {
   background: #F5DEB3;
 }
+
+.piece {
+  cursor: pointer;
+}
