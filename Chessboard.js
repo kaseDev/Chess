@@ -37,12 +37,13 @@ class ChessEngine {
    * and is a standard chess game by default.
    */
   constructor(pieceCodes = defaultBoardLayout) {
+      this.players = ['w', 'b'];
+      this.curPlayer = this.players[0];
       this.tiles = [];
       for (let i = 0; i < 8; i++) {
         this.tiles[i] = [];
-        for (let j = 0; j < 8; j++) {
+        for (let j = 0; j < 8; j++)
           this.tiles[i][j] = new Tile();
-        }
       }
       for (let pieceCode in pieceCodes) {
         const arrIndecies = this.arrayIndeciesFromChessCoord(pieceCodes[pieceCode].split(":")[1]);
@@ -59,6 +60,16 @@ class ChessEngine {
 
   chessCoordFromArrayIndecies(arrayInd) {
     return String.fromCharCode(arrayInd[0] + 97) + (arrayInd[1] + 1).toString();
+  }
+
+  /*
+   * Will interpret the given moveCommand and either advance the game and
+   * return true state or reject the moveCommandCommand and return false.
+   *
+   * ****EXPOSED TO FRONT END****
+   */
+  interpretCommand() {
+
   }
 
   /*
