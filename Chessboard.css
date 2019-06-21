@@ -4,7 +4,7 @@ table, td {
   border: 1px black solid;
 }
 
-td {
+#chess td {
   height: 50px;
   width: 50px;
 }
@@ -14,18 +14,18 @@ img {
   /* width: 30px; */
 }
 
-table {
+#chess {
   background: #8B4513;
   margin-left:auto;
   margin-right:auto;
 }
 
-tr:nth-child(odd) > td:nth-child(odd), tr:nth-child(even) > td:nth-child(even) {
-  background: #A52A2A;
+#chess tr:nth-child(odd) > td:nth-child(odd), #chess tr:nth-child(even) > td:nth-child(even) {
+  background: #F5DEB3;
 }
 
-tr:nth-child(odd) > td:nth-child(even), tr:nth-child(even) > td:nth-child(odd) {
-  background: #F5DEB3;
+#chess tr:nth-child(odd) > td:nth-child(even), #chess tr:nth-child(even) > td:nth-child(odd) {
+  background: #A52A2A;
 }
 
 .piece {

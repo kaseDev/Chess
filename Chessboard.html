@@ -10,9 +10,17 @@
       <h1>This is chess</h1>
     </header>
     <main>
-      <h3>Current Player</h3>
-      <p id='turnLabel'>Player X!</p>
       <table>
+        <tr>
+          <td><p>Current Player</p></td>
+          <td><p id='turnLabel'></p></td>
+        </tr>
+        <tr>
+          <td><p>Turn Counter</p></td>
+          <td><p id='turnCounter'></p></td>
+        </tr>
+      </table>
+      <table id='chess'>
         <tr>
           <td class="tile" id="a8"></td>
           <td class="tile" id="b8"></td>

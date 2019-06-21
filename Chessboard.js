@@ -1,29 +1,311 @@
 // Back End //
 
 // this is the default starting position of a game of chess
-const defaultBoardLayout = ["bR:a8", "bB:b8", "bN:c8", "bK:d8", "bQ:e8", "bN:f8", "bB:g8", "bR:h8",
+const defaultBoardLayout = ["bR:a8", "bB:b8", "bN:c8", "bQ:d8", "bK:e8", "bN:f8", "bB:g8", "bR:h8",
                             "bP:a7", "bP:b7", "bP:c7", "bP:d7", "bP:e7", "bP:f7", "bP:g7", "bP:h7",
                             "wP:a2", "wP:b2", "wP:c2", "wP:d2", "wP:e2", "wP:f2", "wP:g2", "wP:h2",
-                            "wR:a1", "wB:b1", "wN:c1", "wK:d1", "wQ:e1", "wN:f1", "wB:g1", "wR:h1"]
-
-class Tile {
-
-}
+                            "wR:a1", "wB:b1", "wN:c1", "wQ:d1", "wK:e1", "wN:f1", "wB:g1", "wR:h1"]
 
 class Piece {
-  constructor(pieceCode) {
-    this.color = pieceCode.charAt(0);
-    this.type = pieceCode.charAt(1);
-    // must be different for each piece
-    this.isValidMove = (chessCoord) => {
-        // TODO make each piece know how to move properly
-        // return a boolean stating whether the move was valid or not
-        // will need to know about the game state some how to account for taking pieces, friendly pieces blocking, or en passent pawn capture
+  constructor(pieceLocationCode, board) {
+    this.color = pieceLocationCode.split(":")[0].charAt(0);
+    this.type = pieceLocationCode.split(":")[0].charAt(1);
+    this.location = pieceLocationCode.split(":")[1];
+    this.timesMoved = 0;
+    this.board = board;
+  }
+
+  /*
+   * This function is the main interface with the outside. Calling this function will require the
+   * piece to check if the move is valid before completing the move.
+   */
+  performLegalMove(locationCode) {
+    if (this.canMoveTo(locationCode)) {
+      if (!this.isOccupied(locationCode)) {
+        this.moveTo(locationCode);
+        return true;
+      } else {
+        this.captureAt(locationCode);
+        return true;
+      }
+    } else {
+      return false;
     }
+  }
+
+  /*
+   * This function returns a boolean representing whether the king can make
+   * a move to the defined location.
+   */
+  canMoveTo(locationCode) {
+    return this.getTilesInMovementRange().includes(locationCode);
+  }
+
+  /*
+   * This function will move the piece from its current location to it's intended
+   * location regardless of whether that is a legal chess move.
+   */
+  moveTo(locationCode) {
+    delete this.board[this.location];
+    this.board[locationCode] = this;
+    this.location = locationCode;
+    this.timesMoved++;
+  }
+
+  /*
+   * This function will move the piece to the location where it can capture
+   * a different piece regardless of whether that is a legal chess move.
+   */
+  captureAt(locationCode) {
+    this.board[locationCode].take();
+    this.moveTo(locationCode);
+  }
+
+  /* this function removes this piece from the board regardless of whether it was
+   * captured by any other piece, it is called when another piece captures this
+   * one.
+   */
+  take() {
+    delete this.board[this.location];
+  }
+
+  /*
+   * TODO: THIS FITS BETTER IN A DISTINCT BOARD CLASS
+   */
+  isOccupied(locationCode) {
+    return this.board[locationCode] != null;
   }
 
   getPieceCode() {
     return this.color + this.type;
+  }
+
+  getLocationCode() {
+    return this.location;
+  }
+
+  getPieceLocationCode() {
+    return getPieceCode() + ":" + getLocationCode();
+  }
+
+  isLocationCoordOnBoard(locationCoord) {
+    let i = locationCoord[0];
+    let j = locationCoord[1];
+    return (i >= 0 && i < 8) && (j >= 0 && j < 8);
+  }
+
+  toCoordFromLocationCode(locationCode) {
+    const coord = [];
+    coord.push(locationCode.charCodeAt(0) - 97);
+    coord.push(parseInt(locationCode.charAt(1)) - 1);
+    return coord;
+  }
+
+  toLocationCodeFromCoord(coord) {
+    return String.fromCharCode(coord[0] + 97) + (coord[1] + 1).toString();
+  }
+}
+
+class King extends Piece {
+  constructor(pieceLocationCode, board) {
+    super(pieceLocationCode, board);
+  }
+
+  /*
+   * This function returns an array containing all the locations that the king can
+   * legally move to given his current position and surroundings.
+   */
+  getTilesInMovementRange() {
+    let curLocationCoord = this.toCoordFromLocationCode(this.location);
+    let moveSet = [];
+    for (let i = curLocationCoord[0] - 1; i <= curLocationCoord[0] + 1; i++) {
+      for (let j = curLocationCoord[1] - 1; j <= curLocationCoord[1] + 1; j++) {
+        let tempLocationCoord = this.toLocationCodeFromCoord([i, j]);
+        if ( this.isLocationCoordOnBoard([i, j])
+              && !(i === curLocationCoord[0] && j === curLocationCoord[1]) )
+          moveSet.push(this.toLocationCodeFromCoord([i, j]));
+      }
+    }
+    return moveSet;
+  }
+
+  /*
+   * This function returns a boolean representing whether the king can make
+   * a move to the defined location.
+   */
+  canMoveTo(locationCode) {
+    return this.getTilesInMovementRange().includes(locationCode);
+  }
+}
+
+class Queen extends Piece {
+  constructor(pieceLocationCode, board) {
+    super(pieceLocationCode, board);
+  }
+
+  getTilesInMovementRange() {
+    let curLocationCoord = this.toCoordFromLocationCode(this.location);
+    let moveSet = [];
+    let directions = [[1,0], [1,1], [0,1], [-1,1], [-1,0], [-1,-1], [0,-1], [1,-1]];
+    for (let direction of directions) {
+      let i;
+      let j;
+      for (i = curLocationCoord[0] + direction[0], j = curLocationCoord[1] + direction[1];
+                i < 8 && j < 8 && i >= 0 && j >= 0; i += direction[0], j += direction[1]) {
+        let endingLocation = this.toLocationCodeFromCoord([i,j]);
+        if (this.board[endingLocation] == null) {
+          moveSet.push(endingLocation);
+          continue;
+        } else if (this.board[endingLocation].color !== this.color)
+          moveSet.push(endingLocation);
+        break;
+      }
+    }
+    return moveSet;
+  }
+}
+
+class Knight extends Piece {
+  constructor(pieceLocationCode, board) {
+    super(pieceLocationCode, board);
+  }
+
+  getTilesInMovementRange() {
+    let curLocationCoord = this.toCoordFromLocationCode(this.location);
+    let moveSet = [];
+    let moveCoords = [[curLocationCoord[0] + 2, curLocationCoord[1] + 1],
+                      [curLocationCoord[0] + 1, curLocationCoord[1] + 2],
+                      [curLocationCoord[0] - 1, curLocationCoord[1] + 2],
+                      [curLocationCoord[0] - 2, curLocationCoord[1] + 1],
+                      [curLocationCoord[0] - 2, curLocationCoord[1] - 1],
+                      [curLocationCoord[0] - 1, curLocationCoord[1] - 2],
+                      [curLocationCoord[0] + 1, curLocationCoord[1] - 2],
+                      [curLocationCoord[0] + 2, curLocationCoord[1] - 1]];
+    for (let move of moveCoords)
+      if (this.isLocationCoordOnBoard(move))
+        moveSet.push(this.toLocationCodeFromCoord(move));
+    return moveSet;
+  }
+}
+
+class Bishop extends Piece {
+  constructor(pieceLocationCode, board) {
+    super(pieceLocationCode, board);
+  }
+
+  getTilesInMovementRange() {
+    let curLocationCoord = this.toCoordFromLocationCode(this.location);
+    let moveSet = [];
+    let directions = [[1,1], [1,-1], [-1,-1], [-1,1]];
+    for (let direction of directions) {
+      let i;
+      let j;
+      for (i = curLocationCoord[0] + direction[0], j = curLocationCoord[1] + direction[1];
+                i < 8 && j < 8 && i >= 0 && j >= 0; i += direction[0], j += direction[1]) {
+        let endingLocation = this.toLocationCodeFromCoord([i,j]);
+        if (this.board[endingLocation] == null) {
+          moveSet.push(endingLocation);
+          continue;
+        } else if (this.board[endingLocation].color !== this.color)
+          moveSet.push(endingLocation);
+        break;
+      }
+    }
+    return moveSet;
+  }
+}
+
+class Rook extends Piece {
+  constructor(pieceLocationCode, board) {
+    super(pieceLocationCode, board);
+  }
+
+  getTilesInMovementRange() {
+    let curLocationCoord = this.toCoordFromLocationCode(this.location);
+    let moveSet = [];
+    let directions = [[1,0], [0,1], [-1,0], [0,-1]];
+    for (let direction of directions) {
+      let i;
+      let j;
+      for (i = curLocationCoord[0] + direction[0], j = curLocationCoord[1] + direction[1];
+                i < 8 && j < 8 && i >= 0 && j >= 0; i += direction[0], j += direction[1]) {
+        let endingLocation = this.toLocationCodeFromCoord([i,j]);
+        if (this.board[endingLocation] == null) {
+          moveSet.push(endingLocation);
+          continue;
+        } else if (this.board[endingLocation].color !== this.color)
+          moveSet.push(endingLocation);
+        break;
+      }
+    }
+    return moveSet;
+  }
+}
+
+class Pawn extends Piece {
+  constructor(pieceLocationCode, board) {
+    super(pieceLocationCode, board);
+  }
+
+  getTilesInMovementRange() {
+    let curLocationCoord = this.toCoordFromLocationCode(this.location);
+    let moveSet = [];
+    let direction = (this.color === 'w') ? 1 : -1;
+    let potentialMoves = [[curLocationCoord[0], curLocationCoord[1] + (1 * direction)],
+                      [curLocationCoord[0], curLocationCoord[1]  + (2 * direction)]];
+    if (this.board[potentialMoves[0]] != null)
+      return moveSet;
+    moveSet.push(this.toLocationCodeFromCoord(potentialMoves[0]));
+    if (this.board[potentialMoves[1]] == null && this.timesMoved === 0)
+      moveSet.push(this.toLocationCodeFromCoord(potentialMoves[1]));
+    return moveSet;
+  }
+
+  canMoveTo(locationCode) {
+    return this.getTilesInMovementRange().includes(locationCode);
+  }
+
+  getTilesInCaptureRange() {
+    let curLocationCoord = this.toCoordFromLocationCode(this.location);
+    let moveSet = [];
+    let direction = (this.color === 'w') ? 1 : -1;
+    let potentialMoves = [[curLocationCoord[0] + 1, curLocationCoord[1] + direction],
+                      [curLocationCoord[0] - 1, curLocationCoord[1] + direction]];
+    if (this.board[this.toLocationCodeFromCoord(potentialMoves[0])] != null
+          && this.board[this.toLocationCodeFromCoord(potentialMoves[0])].color !== this.color)
+      moveSet.push(this.toLocationCodeFromCoord(potentialMoves[0]));
+    if (this.board[this.toLocationCodeFromCoord(potentialMoves[1])] != null
+          && this.board[this.toLocationCodeFromCoord(potentialMoves[1])].color !== this.color)
+      moveSet.push(this.toLocationCodeFromCoord(potentialMoves[1]));
+    console.log(moveSet);
+    return moveSet;
+  }
+
+  canCaptureAt(locationCode) {
+
+    return this.getTilesInCaptureRange().includes(locationCode);
+  }
+
+  performLegalMove(locationCode) {
+    if (!this.isOccupied(locationCode)) {
+      if (this.canMoveTo(locationCode)) {
+        this.moveTo(locationCode);
+        return true;
+      }
+    } else {
+      if (this.canCaptureAt(locationCode)) {
+        this.captureAt(locationCode);
+        return true;
+      }
+    }
+    return false;
+  }
+}
+
+class Player {
+  constructor(color) {
+    this.color = color; // should be 'w' or 'b'
+    this.pieces = [];
   }
 }
 
@@ -36,30 +318,57 @@ class ChessEngine {
    * pieceCodes allows specifying any starting board position
    * and is a standard chess game by default.
    */
-  constructor(pieceCodes = defaultBoardLayout) {
-      this.players = ['w', 'b'];
-      this.curPlayer = this.players[0];
-      this.tiles = [];
-      for (let i = 0; i < 8; i++) {
-        this.tiles[i] = [];
-        for (let j = 0; j < 8; j++)
-          this.tiles[i][j] = new Tile();
-      }
-      for (let pieceCode in pieceCodes) {
-        const arrIndecies = this.arrayIndeciesFromChessCoord(pieceCodes[pieceCode].split(":")[1]);
-        this.tiles[arrIndecies[0]][arrIndecies[1]].piece = new Piece(pieceCodes[pieceCode].split(":")[0]);
+  constructor(pieceLocationCodes = defaultBoardLayout) {
+      this.players = {
+        'w' : new Player('w'),
+        'b' : new Player('b')
+      };
+      this.curPlayer = this.players['w'];
+      this.board = {};
+      this.turnCounter = 1;
+
+      for (let pieceLocationCode of pieceLocationCodes) {
+        const locationCode = pieceLocationCode.split(":")[1];
+        let piece;
+        switch (pieceLocationCode.split(":")[0].charAt(1)) {
+          case 'K':
+            piece = new King(pieceLocationCode, this.board);
+            break;
+          case 'Q':
+            piece = new Queen(pieceLocationCode, this.board);
+            break;
+          case 'N':
+            piece = new Knight(pieceLocationCode, this.board);
+            break;
+          case 'B':
+            piece = new Bishop(pieceLocationCode, this.board);
+            break;
+          case 'R':
+            piece = new Rook(pieceLocationCode, this.board);
+            break;
+          case 'P':
+            piece = new Pawn(pieceLocationCode, this.board);
+            break;
+        }
+        this.board[locationCode] = piece;
+        if (piece.color === 'w')
+          this.players['w'].pieces.push(piece);
+        else
+          this.players['b'].pieces.push(piece);
       }
   }
 
-  arrayIndeciesFromChessCoord(chessCoord) {
-    const arrayInd = [];
-    arrayInd.push(chessCoord.charCodeAt(0) - 97);
-    arrayInd.push(parseInt(chessCoord.charAt(1)) - 1);
-    return arrayInd;
+  getOtherPlayer(player) {
+    let playerSwitch = {
+      'w' : this.players['b'],
+      'b' : this.players['w']
+    };
+    return playerSwitch[player.color];
   }
 
-  chessCoordFromArrayIndecies(arrayInd) {
-    return String.fromCharCode(arrayInd[0] + 97) + (arrayInd[1] + 1).toString();
+  progressGameStats() {
+    this.turnCounter++;
+    this.curPlayer = this.getOtherPlayer(this.curPlayer);
   }
 
   /*
@@ -68,8 +377,29 @@ class ChessEngine {
    *
    * ****EXPOSED TO FRONT END****
    */
-  interpretCommand() {
+  interpretCommand(moveCommand) {
+    console.log(moveCommand);
 
+    const startingLocation = moveCommand.split(" ")[0];
+    const endingLocation = moveCommand.split(" ")[1];
+    const movingPiece = this.board[startingLocation];
+    if (movingPiece.color !== this.curPlayer.color) {
+      console.log("not your turn!");
+      return;
+    }
+    if (this.board[endingLocation] === this.board[startingLocation]) {
+      console.log("You didn't move...");
+      return;
+    }
+    if (this.board[endingLocation] != null && this.board[endingLocation].color  === this.curPlayer.color) {
+      console.log("Don't take your own piece!")
+      return;
+    }
+    if (movingPiece.performLegalMove(endingLocation))
+      this.progressGameStats();
+    else {
+      console.log("invalid move!");
+    }
   }
 
   /*
@@ -79,11 +409,23 @@ class ChessEngine {
    */
   getGameState() {
     const pieceLocationCodes = [];
-    for (let i = 0; i < 8; i++)
-      for (let j = 0; j < 8; j++)
-        if (this.tiles[i][j].piece)
-          pieceLocationCodes.push(this.tiles[i][j].piece.getPieceCode() + ":" + this.chessCoordFromArrayIndecies([i, j]));
+    for (let location in this.board)
+      if (this.board[location])
+        pieceLocationCodes.push(this.board[location].getPieceCode() + ":" + location);
     return pieceLocationCodes;
+  }
+
+  /*
+   * Returns either 'w' or 'b' indiccating which player's turn it currently is.
+   *
+   * ****EXPOSED TO FRONT END****
+   */
+  getCurrentPlayer() {
+      return this.curPlayer.color;
+  }
+
+  getCurrentTurn() {
+    return this.turnCounter;
   }
 }
 
@@ -111,6 +453,7 @@ let chessEngine = new ChessEngine();
 /* Frontend state variables */
 const tiles = document.querySelectorAll(".tile");
 const turnLabel = document.querySelector('#turnLabel');
+const turnCounter = document.querySelector('#turnCounter');
 const pieceImages = {
       "wR":"sprites/whiteRook.png",
       "wN":"sprites/whiteKnight.png",
@@ -143,6 +486,7 @@ for (const tile of tiles) {
 // }
 
 document.addEventListener('onload', displayGameState());
+document.addEventListener('onload', displayGameStats());
 
 function dragOver(e) {
   e.preventDefault();
@@ -159,7 +503,11 @@ function dragLeave() {
 function dragDrop() {
   // this line would move the piece from its previous location to "this"
   // this.append(heldPiece);
-  console.log(generateMoveCommand(startLocation, this));
+  chessEngine.interpretCommand(generateMoveCommand(startLocation, this));
+
+  clearDisplay();
+  displayGameState();
+  displayGameStats();
 }
 
 function dragStart() {
@@ -182,8 +530,9 @@ function generateMoveCommand(start, end) {
 /* Call this by passing the number 1 or 2 in order to
  * set the label stating whose turn it is.
  */
-function setPlayerTurn(playerNumber) {
-  turnLabel.innerText = "It is Player " + playerNumber + "'s turn.";
+function displayGameStats() {
+  turnLabel.innerText = (chessEngine.getCurrentPlayer() === 'w') ? 'white': 'black';
+  turnCounter.innerText = chessEngine.getCurrentTurn();
 }
 
 /*
